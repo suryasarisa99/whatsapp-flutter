@@ -1,0 +1,170 @@
+import 'package:whatsapp_chat/models/Messages.dart';
+
+List<Map<String, String?>> oldParseMessages(String text, String fileName) {
+  String splitMssg = "";
+  List<String> messages;
+
+  if (text.startsWith("[")) {
+    // new format
+    messages = text.split(
+        RegExp(r'\n(?=\[\d\d\/\d\d\/\d\d, \d\d:\d\d:\d\d\s(?:PM|AM)] )'));
+    splitMssg = "] ";
+    // remove first two lines
+    messages.removeAt(0);
+    messages.removeAt(0);
+  } else {
+    // old format
+    messages = text.split(RegExp(
+        r'\n(?=\d\d?\/\d\d?\/\d\d\d?\d?, \d\d?:\d\d\s?(?:pm|am|PM|AM)? - )'));
+    splitMssg = " - ";
+    messages.removeAt(0);
+  }
+
+  return messages
+      .map((message) {
+        List<String> parts = message.split(splitMssg);
+        String timestamp = parts[0];
+        String content = parts.sublist(1).join(splitMssg);
+        List<String> timestampParts = timestamp.split(", ");
+        String date = timestampParts[0].trim();
+        String time = timestampParts[1].trim();
+        List<String> contentParts = content.split(":");
+        String name = contentParts[0].trim();
+        String mssg = contentParts.sublist(1).join(":").trim();
+        String? file;
+
+        if (mssg.contains("(file attached)")) {
+          List<String> fileParts = mssg.split("(file attached)");
+          file = fileParts[0].trim();
+          mssg = fileParts[1].trim();
+        }
+
+        Map<String, String?> obj = {
+          'date': date,
+          'time': time,
+          'name': name,
+          'mssg': mssg,
+          'file': file,
+        };
+
+        // if (fileName.contains("Bosch Siemens")) {
+        //   if (mssg.length == 16) return obj;
+        // } else if (fileName.contains("Artes conference group")) {
+        //   if (mssg.length == 12) return obj;
+        // } else if (mssg.isNotEmpty) {
+        //   return obj;
+        // }
+        // return null;
+
+        return obj;
+      })
+      .where((item) => item != null)
+      .cast<Map<String, String?>>()
+      .toList();
+}
+
+List<Message> oldParseMessages2(String text, String fileName) {
+  String splitMssg = "";
+  List<String> messages;
+
+  // \U2003
+
+  if (text.startsWith("[")) {
+    // new format
+    messages = text.split(
+        RegExp(r'\n(?=\[\d\d\/\d\d\/\d\d, \d\d?:\d\d?:\d\d\s(?:PM|AM)\] )'));
+    splitMssg = "] ";
+    // remove first two lines
+    messages.removeAt(0);
+    messages.removeAt(0);
+  } else {
+    // old format
+    messages = text.split(RegExp(
+        r'\n(?=\d\d?\/\d\d?\/\d\d\d?\d?, \d\d?:\d\d\s?(?:pm|am|PM|AM)? - )'));
+    splitMssg = " - ";
+    messages.removeAt(0);
+  }
+
+  return messages.map((message) {
+    List<String> parts = message.split(splitMssg);
+    String timestamp = parts[0];
+    String content = parts.sublist(1).join(splitMssg);
+    List<String> timestampParts = timestamp.split(", ");
+    String date = timestampParts[0].trim();
+    String time = timestampParts[1].trim();
+    List<String> contentParts = content.split(":");
+    String name = contentParts[0].trim();
+    String mssg = contentParts.sublist(1).join(":").trim();
+    String? file;
+
+    if (mssg.contains("(file attached)")) {
+      List<String> fileParts = mssg.split("(file attached)");
+      file = fileParts[0].trim();
+      mssg = fileParts[1].trim();
+    }
+
+    final m = Message(
+      mssg: mssg,
+      name: name,
+      time: time,
+      date: date,
+      file: file,
+    );
+
+    return m;
+  }).toList();
+}
+
+
+ if (filePath.endsWith('.zip')) {
+                    // Handle ZIP file
+                    debugPrint("ZIP file");
+
+                    var bytes = File(filePath).readAsBytesSync();
+                    var archive = ZipDecoder().decodeBytes(bytes);
+                    for (var file in archive) {
+                      if (file.isFile && file.name.endsWith('.txt')) {
+                        var fileName = file.name;
+                        var fileContent = file.content as List<int>;
+                        var text =
+                            utf8.decode(fileContent, allowMalformed: true);
+                        var messgs = parseMessages(text, fileName);
+                        // messgs = groupMessages(messgs);
+                        final names =
+                            getNames(messgs.sublist(0, min(20, messgs.length)));
+                        // var jsonEncodableMessages =
+                        //     messgs.map((msg) => msg.toJson()).toList();
+                        // var modifiedContent =
+                        //     utf8.encode(jsonEncode(jsonEncodableMessages));
+
+                        String name = "";
+                        if (fileName == "_chat.txt") {
+                          // ios
+                          name = result.files.first.xFile.name
+                              .replaceFirst("WhatsApp Chat - ", "");
+                        } else {
+                          name = fileName
+                              .replaceFirst("WhatsApp Chat with ", "")
+                              .replaceFirst(".txt", "");
+                        }
+
+                        int i = -1;
+                        if (names.length == 2) {
+                          i = names.indexWhere((element) {
+                            return element == name;
+                          });
+                        }
+                        i = i == -1 ? 0 : (i == 0 ? 1 : 0);
+                        GoRouter.of(context).push("/chat",
+                            extra: Messages(
+                              messages: messgs,
+                              archive: archive,
+                              chatDir: filePath,
+                              innerFile: fileName,
+                              isFolder: true,
+                              names: names,
+                              direction: i,
+                            ));
+                      }
+                    }
+                  }

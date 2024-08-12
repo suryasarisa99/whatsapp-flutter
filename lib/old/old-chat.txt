@@ -1,0 +1,222 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:archive/archive_io.dart';
+import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:flutter_contacts/vcard.dart';
+import 'package:go_router/go_router.dart';
+// import 'package:vcf/vcf.dart';
+import 'package:whatsapp_chat/models/Messages.dart';
+import 'package:whatsapp_chat/screens/home_screen.dart';
+
+class ChatScreen extends StatefulWidget {
+  const ChatScreen({super.key, required this.data});
+
+  final Messages data;
+
+  @override
+  State<ChatScreen> createState() => _ChatScreenState();
+}
+
+class _ChatScreenState extends State<ChatScreen> {
+  late int direction = widget.data.direction;
+
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+    // });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.data.names[direction == 0 ? 1 : 0]),
+        actions: [
+          // if (!widget.data.isSaved)
+          //   IconButton(
+          //       onPressed: () {
+          //         GoRouter.of(context).push('/save', extra: widget.data);
+          //       },
+          //       icon: Icon(Icons.save)),
+          IconButton(
+            icon: const Icon(Icons.more_vert),
+            onPressed: () {
+              showMenu(
+                  context: context,
+                  position: const RelativeRect.fromLTRB(
+                    100,
+                    0,
+                    0,
+                    100,
+                  ),
+                  items: [
+                    PopupMenuItem(
+                      child: const Row(
+                        children: [
+                          Icon(Icons.swap_horiz),
+                          SizedBox(width: 16),
+                          Text('Swap'),
+                        ],
+                      ),
+                      onTap: () {
+                        setState(() {
+                          direction = (direction + 1) % 2;
+                          widget.data.direction = direction;
+                        });
+                      },
+                    ),
+                    PopupMenuItem(
+                      child: const Row(
+                        children: [
+                          Icon(Icons.arrow_downward),
+                          SizedBox(width: 16),
+                          Text('Go Bottom'),
+                        ],
+                      ),
+                      onTap: () {
+                        _scrollController
+                            .jumpTo(_scrollController.position.maxScrollExtent);
+                      },
+                    ),
+                  ]);
+            },
+          ),
+        ],
+      ),
+      body: ListView.builder(
+        controller: _scrollController,
+        itemCount: widget.data.messages.length,
+        itemBuilder: (context, index) {
+          bool isMe =
+              widget.data.messages[index].name == widget.data.names[direction];
+          return Row(
+            mainAxisAlignment:
+                isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              ChatBubble(
+                widget.data.messages[index],
+                isMe,
+                arc: widget.data.archive,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class ChatBubble extends StatelessWidget {
+  final Message mssg;
+  final bool isMe;
+  final Archive? arc;
+
+  const ChatBubble(this.mssg, this.isMe, {super.key, this.arc});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 8,
+      ),
+      margin: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 6,
+      ),
+      constraints: BoxConstraints(
+        maxWidth: size.width * 0.58,
+        minWidth: 50,
+      ),
+      decoration: BoxDecoration(
+        color: const Color.fromARGB(255, 50, 51, 87),
+        borderRadius: BorderRadius.only(
+          topRight:
+              !isMe ? const Radius.circular(16) : const Radius.circular(0),
+          bottomRight: const Radius.circular(16),
+          bottomLeft: const Radius.circular(16),
+          topLeft: isMe ? const Radius.circular(16) : const Radius.circular(0),
+        ),
+        // borderRadius: mssgBorderRadius[isMe ? 0 : 1][mssg.mssgGroupType],
+      ),
+      child: Column(
+        children: [
+          if (mssg.file != null)
+            FilePreview(
+                file: arc?.firstWhereOrNull((e) => e.name == mssg.file)),
+          if (mssg.file != null && mssg.mssg.isNotEmpty)
+            const SizedBox(height: 8),
+          if (mssg.mssg.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8),
+              child: Text(
+                mssg.mssg,
+                // "${mssg.mssgGroupType} ${mssg.mssg}",
+                // "file: ${mssg.file} ${mssg.mssg}",
+                overflow: TextOverflow.visible,
+                style: const TextStyle(
+                  // color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class FilePreview extends StatefulWidget {
+  const FilePreview({super.key, required this.file});
+
+  final ArchiveFile? file;
+
+  @override
+  State<FilePreview> createState() => _FilePreviewState();
+}
+
+class _FilePreviewState extends State<FilePreview> {
+  Widget readVcfFile() {
+    var text =
+        utf8.decode(widget.file!.content as List<int>, allowMalformed: true);
+    var contact = Contact.fromVCard(text);
+    return ListTile(
+      title: Text(contact.displayName),
+      subtitle: Text(contact.phones.first.number.toString()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.file != null &&
+        (widget.file!.name.endsWith('.jpg') ||
+            widget.file!.name.endsWith('.jpeg') ||
+            widget.file!.name.endsWith('.png'))) {
+      final imageBytes = Uint8List.fromList(widget.file!.content as List<int>);
+      return ClipRRect(
+          borderRadius: BorderRadius.circular(16 - 8),
+          child: Image.memory(widget.file!.content));
+    }
+
+    if (widget.file != null && widget.file!.name.endsWith('.vcf')) {
+      final filePath = widget.file!.name;
+      return readVcfFile();
+      // return SizedBox(
+      // child: Text("File: ${widget.file?.name}"),
+      // );
+    }
+
+    return SizedBox(
+      child: Text("File: ${widget.file?.name}"),
+    );
+  }
+}
