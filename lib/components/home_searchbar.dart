@@ -11,7 +11,7 @@ class HomeSearchbar extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final sbColor = Theme.of(context).brightness == Brightness.dark
         ? Theme.of(context).colorScheme.surface.lighten(0.05)
-        : Theme.of(context).colorScheme.primaryContainer.lighten(0.06);
+        : Theme.of(context).colorScheme.primaryContainer.lighten(0.14);
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: CupertinoTextField(

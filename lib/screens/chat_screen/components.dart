@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:flutter/services.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:open_file/open_file.dart';
@@ -8,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:whatsapp_chat/models/Messages.dart';
 import 'package:whatsapp_chat/providers/saved_chats_provider.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
@@ -51,7 +54,12 @@ class _FilePreviewState extends State<FilePreview> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     String ext = p.extension(widget.filePath);
-    if ((ext == ".jpg" || ext == ".jpeg" || ext == '.png')) {
+    if ((ext == ".jpg" ||
+        ext == ".jpeg" ||
+        ext == '.png' ||
+        ext == ".webp" ||
+        ext == ".gif" ||
+        ext == ".")) {
       return SizedBox(
         width: size.width * 0.7,
         height: size.width * 0.75,
@@ -160,8 +168,10 @@ class ChatBubble extends ConsumerWidget {
   final Message mssg;
   final bool isMe;
   final Directory? dir;
+  final bool inSelectionMode;
 
-  const ChatBubble(this.mssg, this.isMe, {super.key, this.dir});
+  const ChatBubble(this.mssg, this.isMe,
+      {super.key, this.dir, required this.inSelectionMode});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -180,6 +190,7 @@ class ChatBubble extends ConsumerWidget {
                 : size.width * 0.7
             : size.width * 0.8,
         minWidth: 50,
+        minHeight: 20,
       ),
       decoration: BoxDecoration(
         // color: const Color.fromARGB(255, 50, 51, 87),
@@ -215,27 +226,32 @@ class ChatBubble extends ConsumerWidget {
             // file: dir?.firstWhereOrNull((e) => e.name == mssg.file)),
             InkWell(
               borderRadius: BorderRadius.circular(16 - 8 - 2),
-              onTap: () async {
-                final filepath = p.join(dir!.path, mssg.file);
-                if (mssg.file!.startsWith("WhatsApp Chat")) {
-                  handleData(null, filepath, mssg.file!, (Messages messages) {
-                    final savedMssgItem = messages.toSavedMessageItem();
-                    ref
-                        .read(savedChatsProvider.notifier)
-                        .addChat(savedMssgItem);
-                    GoRouter.of(context).push("/chat", extra: messages);
-                  });
-                  return;
-                }
-                final result = await OpenFile.open(filepath);
-                if (result.type != ResultType.done) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content:
-                            Text('Could not open file: ${result.message}')),
-                  );
-                }
-              },
+              onTap: inSelectionMode
+                  ? null
+                  : () async {
+                      debugPrint(
+                          "===============  ${inSelectionMode} ============");
+                      final filepath = p.join(dir!.path, mssg.file);
+                      if (mssg.file!.startsWith("WhatsApp Chat")) {
+                        handleData(null, filepath, mssg.file!,
+                            (Messages messages) {
+                          final savedMssgItem = messages.toSavedMessageItem();
+                          ref
+                              .read(savedChatsProvider.notifier)
+                              .addChat(savedMssgItem);
+                          GoRouter.of(context).push("/chat", extra: messages);
+                        });
+                        return;
+                      }
+                      final result = await OpenFile.open(filepath);
+                      if (result.type != ResultType.done) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Could not open file: ${result.message}')),
+                        );
+                      }
+                    },
               child: FilePreview(
                 isMe: isMe,
                 filePath: p.join(dir!.path, mssg.file),
@@ -246,15 +262,33 @@ class ChatBubble extends ConsumerWidget {
           if (mssg.mssg.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(left: 8, right: 8),
-              child: Text(
-                mssg.mssg,
-                // "${mssg.mssgGroupType} ${mssg.mssg}",
-                // "file: ${mssg.file} ${mssg.mssg}",
+              // child: Text(
+              //   mssg.mssg,
+              //   maxLines: 16,
+              //   overflow: TextOverflow.ellipsis,
+              //   style: const TextStyle(
+              //     // color: Colors.white,
+              //     fontSize: 16,
+              //   ),
+              // ),
+              child: Linkify(
+                onOpen: (link) async {
+                  final uri = Uri.parse(link.url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    throw 'Could not launch $link';
+                  }
+                },
+                text: mssg.mssg,
                 maxLines: 16,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  // color: Colors.white,
                   fontSize: 16,
+                ),
+                linkStyle: const TextStyle(
+                  color: Colors.blue,
+                  decoration: TextDecoration.none,
                 ),
               ),
             ),

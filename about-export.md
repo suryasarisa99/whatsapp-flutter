@@ -48,3 +48,7 @@
 
   \[\d\d\/\d\d\/\d\d, \d\d?:\d\d?:\d\d\s(?:PM|AM)\] name: mssg
 ```
+
+// to do:
+// add date and time
+// search based on date

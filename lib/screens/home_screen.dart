@@ -91,6 +91,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       floatingActionButton: SizedBox(
           height: 48,
           child: FloatingActionButton.extended(
+              heroTag: "home_tag",
               onPressed: () async {
                 var result = await FilePicker.platform.pickFiles(
                   allowMultiple: false, // optional
@@ -123,6 +124,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 return ListTile(
                   leading: CircleAvatar(
                       radius: 25,
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withOpacity(0.5),
                       child: Icon(
                         Icons.person,
                         size: 25,

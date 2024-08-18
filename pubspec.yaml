@@ -15,6 +15,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_contacts: ^1.1.9+2
+  flutter_linkify: ^6.0.0
   flutter_riverpod: ^2.5.1
   flutter_svg: ^2.0.10+1
   font_awesome_flutter: ^10.7.0
@@ -28,11 +29,16 @@ dependencies:
   process_run: ^1.1.0
   receive_sharing_intent: ^1.8.0
   root_access: ^1.0.4
+  screenshot: ^3.0.0
   scrollable_positioned_list: ^0.3.8
+  # share_plus: ^8.0.3
+  share_plus: ^10.0.2
   shared_preferences: ^2.3.1
   sqflite: ^2.3.3+1
   sqflite_common_ffi: ^2.3.3
+  url_launcher: ^6.3.0
   video_player: ^2.9.1
+  widgets_to_image: ^1.0.0
 
 dev_dependencies:
   flutter_lints: ^3.0.0
