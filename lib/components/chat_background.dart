@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
 
 class ChatBackground extends StatelessWidget {
@@ -6,6 +7,14 @@ class ChatBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const svgs = [
+      "bubbles.svg",
+      "circuit-board.svg",
+      "line-in-motion.svg",
+      "topography.svg",
+      "wiggle.svg",
+      "random-shapes.svg"
+    ];
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final double patternOpacity = isDark ? 0.13 : 0.8;
     return Positioned(
@@ -18,6 +27,7 @@ class ChatBackground extends StatelessWidget {
           color: Theme.of(context).colorScheme.surface.darken(0.02),
           // color: Color(0xff080c11), #whatsapp dark background
         ),
+        // whatsapp pattern
         child: Opacity(
             opacity: patternOpacity,
             child: Image.asset(
@@ -35,9 +45,12 @@ class ChatBackground extends StatelessWidget {
         //     crossAxisCount: 6, // Adjust the number of columns as needed
         //   ),
         //   itemBuilder: (context, index) {
-        //     return SvgPicture.asset(
-        //       'assets/patterns/${svgs[5]}',
-        //       fit: BoxFit.cover,
+        //     return Opacity(
+        //       opacity: patternOpacity,
+        //       child: SvgPicture.asset(
+        //         'assets/patterns/${svgs[5]}',
+        //         fit: BoxFit.cover,
+        //       ),
         //     );
         //   },
         // ),

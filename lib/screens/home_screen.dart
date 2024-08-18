@@ -1,42 +1,41 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math';
-
-import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:whatsapp_chat/components/home_appbar.dart';
+import 'package:whatsapp_chat/components/home_searchbar.dart';
+import 'package:whatsapp_chat/main.dart';
 import 'package:whatsapp_chat/models/Messages.dart';
+import 'package:whatsapp_chat/providers/saved_chats_provider.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
 import 'package:whatsapp_chat/utils/handle.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-SharedPreferences? prefs;
 Directory chatsDir = Directory("");
 String chatsPath = "";
 
-class _HomeScreenState extends State<HomeScreen> {
-  List<SavedMessageItems> savedMessages = [];
-
-  final FocusNode focusNode = FocusNode();
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final textEditingController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     // _requestPermissions();
+
+    // ref.read(savedChatsProvider.notifier).setChats(savedMessages);
 
     // getApplicationDocumentsDirectory().then((d) {
     getExternalStorageDirectory().then((d) {
@@ -50,12 +49,12 @@ class _HomeScreenState extends State<HomeScreen> {
       prefs = value;
       final rawtext = prefs!.getString("chats");
       final rawData = jsonDecode(rawtext ?? "[]") as List;
-      setState(() {
-        savedMessages = rawData
-            .map(
-                (e) => SavedMessageItems.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
-      });
+      // setState(() {
+      //   savedMessages = rawData
+      //       .map(
+      //           (e) => SavedMessageItems.fromJson(Map<String, dynamic>.from(e)))
+      //       .toList();
+      // });
     });
   }
 
@@ -83,73 +82,39 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final sbColor = Theme.of(context).brightness == Brightness.dark
-        ? Theme.of(context).colorScheme.surface.lighten(0.05)
-        : Theme.of(context).colorScheme.primaryContainer.lighten(0.06);
-    debugPrint(sbColor.toString());
+    List<SavedMessageItems> savedMessages = ref.watch(savedChatsProvider);
+    debugPrint("in build: ${savedMessages.length}");
+
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      appBar: AppBar(
-        title: Text('WhatsApp',
-            style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: isDark
-                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
-                    : Theme.of(context).colorScheme.primary,
-                fontSize: 26)),
-        actions: const [
-          Icon(Icons.qr_code_scanner_outlined),
-          SizedBox(width: 22),
-          Icon(Icons.camera_alt_outlined),
-          SizedBox(width: 22),
-          Icon(Icons.more_vert),
-          SizedBox(
-            width: 10,
-          )
-        ],
-      ),
+      appBar: HomeAppbar(),
       floatingActionButton: SizedBox(
           height: 48,
           child: FloatingActionButton.extended(
-              onPressed: () {
-                handleFilePickAndPareMssgs(chatsPath, (Messages messages) {
-                  final savedMssgItem = messages.toSavedMessageItem();
-                  setState(() {
-                    savedMessages.add(savedMssgItem);
-                    prefs!.setString(
-                        "chats",
-                        jsonEncode(
-                            savedMessages.map((e) => e.toJson()).toList()));
+              onPressed: () async {
+                var result = await FilePicker.platform.pickFiles(
+                  allowMultiple: false, // optional
+                  type: FileType.custom,
+                  allowedExtensions: ['txt', 'zip'], // optional
+                );
+                if (result != null) {
+                  var filePath = result.files.single.path!;
+                  var fileName = result.files.single.name;
+                  handleData(chatsPath, filePath, fileName,
+                      (Messages messages) {
+                    final savedMssgItem = messages.toSavedMessageItem();
+                    ref
+                        .read(savedChatsProvider.notifier)
+                        .addChat(savedMssgItem);
+                    GoRouter.of(context).push("/chat", extra: messages);
                   });
-                });
+                }
               },
               icon: const Icon(Icons.add),
               label: const Text("add"))),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: CupertinoTextField(
-              placeholder: "Ask Meta Ai or Search",
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(25),
-                color: sbColor,
-              ),
-              prefix: const Padding(
-                padding:
-                    EdgeInsets.only(left: 16, right: 8, top: 13, bottom: 13),
-                child: Icon(Icons.search),
-              ),
-              focusNode: focusNode,
-              onTapOutside: (x) {
-                focusNode.unfocus();
-              },
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontSize: 16,
-              ),
-            ),
-          ),
+          HomeSearchbar(),
           Expanded(
             child: ListView.builder(
               itemCount: savedMessages.length,
@@ -174,23 +139,40 @@ class _HomeScreenState extends State<HomeScreen> {
                               .onSurface
                               .withOpacity(0.6))),
                   onLongPress: () async {
+                    debugPrint("remove chat");
                     // delete chat
-                    if (item.isFolder) {
-                      final path = p.join(chatsPath, item.chatId);
-                      final dir = await Directory(path);
-                      dir.deleteSync(recursive: true);
-                    } else {
-                      final file =
-                          File(p.join(chatsPath, "${item.chatId}.json"));
-                      file.deleteSync();
+                    try {
+                      if (item.isFolder) {
+                        final path = p.join(chatsPath, item.chatId);
+                        final dir = await Directory(path);
+                        dir.deleteSync(recursive: true);
+                      } else {
+                        final file =
+                            File(p.join(chatsPath, "${item.chatId}.json"));
+                        file.deleteSync();
+                      }
+                    } catch (e) {
+                      debugPrint("error: $e");
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .errorContainer
+                              .darken(0.2),
+                          content: Text("Error deleting chat: $e",
+                              style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onErrorContainer)),
+                          duration: const Duration(seconds: 2)));
                     }
-                    setState(() {
-                      savedMessages.removeAt(index);
-                      prefs!.setString(
-                          "chats",
-                          jsonEncode(
-                              savedMessages.map((e) => e.toJson()).toList()));
-                    });
+                    ref.read(savedChatsProvider.notifier).removeChat(index);
+                    // setState(() {
+                    //   savedMessages.removeAt(index);
+                    //   prefs!.setString(
+                    //       "chats",
+                    //       jsonEncode(
+                    //           savedMessages.map((e) => e.toJson()).toList()));
+                    // });
                   },
                   onTap: () async {
                     late final File chatFile;

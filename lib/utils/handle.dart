@@ -1,85 +1,89 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive_io.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:whatsapp_chat/models/Messages.dart';
 
-void handleFilePickAndPareMssgs(
-    String chatsPath, void Function(Messages messages) onDone) async {
-  var result = await FilePicker.platform.pickFiles(
-    allowMultiple: false, // optional
-    type: FileType.custom,
-    allowedExtensions: ['txt', 'zip'], // optional
-  );
-  if (result != null) {
-    var filePath = result.files.single.path!;
-    if (filePath.endsWith(".zip")) {
-      // get archive
-      var bytes = File(filePath).readAsBytesSync();
-      var archive = ZipDecoder().decodeBytes(bytes);
-      // create output path
-      var outputId = DateTime.now().millisecondsSinceEpoch.toString();
-      var outputPath = p.join(chatsPath, outputId);
-      // extract archive to output path
-      await extractArchiveToDisk(archive, outputPath);
-      // get chat file
-      var outputDir = Directory(outputPath);
-      var chatFile = outputDir.listSync().firstWhere((file) =>
-          file is File &&
-          (p.basename(file.path) == "_chat.txt" ||
-              (file.path.endsWith('.txt') &&
-                  p.basename(file.path).startsWith("WhatsApp Chat"))));
+void handleData(String? chatsPath, String filePath, fileName,
+    void Function(Messages messages) onDone) async {
+  final _chatsPath = chatsPath == null
+      ? p.join((await getExternalStorageDirectory())!.path, "chats")
+      : chatsPath;
+  if (filePath.endsWith(".zip")) {
+    // get archive
+    var bytes = File(filePath).readAsBytesSync();
+    var archive = ZipDecoder().decodeBytes(bytes);
+    // create output path
+    var outputId = DateTime.now().millisecondsSinceEpoch.toString();
+    var outputPath = p.join(_chatsPath, outputId);
+    // extract archive to output path
+    await extractArchiveToDisk(archive, outputPath);
+    // get chat file
+    var outputDir = Directory(outputPath);
+    var chatFile = outputDir.listSync().firstWhere((file) =>
+        file is File &&
+        (p.basename(file.path) == "_chat.txt" ||
+            (file.path.endsWith('.txt') &&
+                p.basename(file.path).startsWith("WhatsApp Chat"))));
 
-      var text = await File(chatFile.path).readAsString();
-      final mssgs = parseMessages(text, chatFile.path);
-      debugPrint("messages length: ${mssgs.length}");
-      final names = getNames(mssgs.sublist(0, min(30, mssgs.length)));
-      if (names.length == 1) {
-        names.add("");
-      }
-
-      int direction = guessDirection(names, chatFile.path, filePath);
-
-      // delete old file and create new file with json data
-      chatFile.deleteSync();
-      var jsonEncodableMessages = mssgs.map((msg) => msg.toJson()).toList();
-      var jsonData = jsonEncode(jsonEncodableMessages);
-      var newChatFile = File(p.join(outputPath, "chat.json"));
-      await newChatFile.writeAsString(jsonData);
-
-      final messages = Messages(
-        messages: mssgs,
-        chatId: outputId,
-        chatDir: outputDir,
-        isFolder: true,
-        names: names,
-        direction: direction,
-      );
-
-      onDone(messages);
-    } else {
-      debugPrint("Text file");
-      var text = await File(filePath).readAsString();
-
-      final messgs = parseMessages(text, result.files.single.name);
-      final names = getNames(messgs.sublist(0, 20));
-      final chatId = DateTime.now().millisecondsSinceEpoch.toString();
-      final chatFile = File(p.join(chatsPath, "$chatId.json"));
-      await chatFile.writeAsString(
-          jsonEncode(messgs.map((msg) => msg.toJson()).toList()));
-
-      final messages = Messages(
-        messages: messgs,
-        names: names,
-        chatDir: null,
-        isFolder: false,
-        chatId: chatId,
-      );
-      onDone(messages);
+    var text = await File(chatFile.path).readAsString();
+    final mssgs = parseMessages(text, chatFile.path);
+    debugPrint("messages length: ${mssgs.length}");
+    final names = getNames(mssgs.sublist(0, min(30, mssgs.length)));
+    if (names.length == 1) {
+      names.add("");
     }
+
+    int direction = guessDirection(names, chatFile.path, filePath);
+
+    // delete old file and create new file with json data
+    chatFile.deleteSync();
+    var jsonEncodableMessages = mssgs.map((msg) => msg.toJson()).toList();
+    var jsonData = jsonEncode(jsonEncodableMessages);
+    var newChatFile = File(p.join(outputPath, "chat.json"));
+    await newChatFile.writeAsString(jsonData);
+
+    final messages = Messages(
+      messages: mssgs,
+      chatId: outputId,
+      chatDir: outputDir,
+      isFolder: true,
+      names: names,
+      direction: direction,
+    );
+
+    onDone(messages);
+  } else {
+    debugPrint("Text file");
+    var text = await File(filePath).readAsString();
+
+    final messgs = parseMessages(text, fileName);
+    final names = getNames(messgs.sublist(0, 20));
+    final chatId = DateTime.now().millisecondsSinceEpoch.toString();
+    // final chatDir = Directory(chatsPath);
+
+    // // Check if the directory exists, if not, create it
+    // if (!await chatDir.exists()) {
+    //   await chatDir.create(recursive: true);
+    // }
+
+    final chatFile = File(p.join(_chatsPath, "$chatId.json"));
+    await chatFile
+        .writeAsString(jsonEncode(messgs.map((msg) => msg.toJson()).toList()));
+
+    final messages = Messages(
+      messages: messgs,
+      names: names,
+      chatDir: null,
+      isFolder: false,
+      chatId: chatId,
+    );
+    onDone(messages);
   }
 }
 
@@ -137,6 +141,11 @@ List<Message> parseMessages(String text, String fileName) {
       .where((e) =>
           e.name != whatsappInfoStr &&
           (e.mssg != "" || (e.file != null && e.file != "")))
+      .toList()
+      .reversed
+      .mapIndexed((i, item) {
+        return item.copyWith(index: i);
+      })
       .toList();
 }
 

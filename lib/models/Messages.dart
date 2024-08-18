@@ -9,6 +9,7 @@ class Message {
   final String date;
   final String? file;
   final int mssgGroupType;
+  final int index;
   // 0 - normal message
   // 1 - first message in a group
   // 2 - middle message in a group
@@ -21,6 +22,7 @@ class Message {
     required this.date,
     required this.file,
     this.mssgGroupType = 0,
+    this.index = -1,
   });
 
   Message copyWith({
@@ -30,6 +32,7 @@ class Message {
     String? date,
     String? file,
     int? mssgGroupType,
+    int? index,
   }) {
     return Message(
       mssg: mssg ?? this.mssg,
@@ -37,6 +40,7 @@ class Message {
       time: time ?? this.time,
       date: date ?? this.date,
       file: file ?? this.file,
+      index: index ?? this.index,
       mssgGroupType: mssgGroupType ?? this.mssgGroupType,
     );
   }
@@ -49,6 +53,7 @@ class Message {
       date: json['date'],
       file: json['file'],
       mssgGroupType: json['mssgGroupType'],
+      index: json['index'],
     );
   }
 
@@ -60,6 +65,7 @@ class Message {
       'date': date,
       'file': file,
       'mssgGroupType': mssgGroupType,
+      'index': index
     };
   }
 }
@@ -110,8 +116,9 @@ class Messages {
   }
 
   SavedMessageItems toSavedMessageItem() {
-    final lastMssg = messages.last.mssg;
-    final lastMssgTime = messages.last.time;
+    //  used first instead of last because, the list is reversed in parseMessages fun
+    final lastMssg = messages.first.mssg;
+    final lastMssgTime = messages.first.time;
     return SavedMessageItems(
       chatId: chatId,
       isFolder: isFolder,
