@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:whatsapp_chat/constants.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
 
 class ChatInputField extends StatelessWidget {

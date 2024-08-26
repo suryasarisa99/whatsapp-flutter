@@ -52,3 +52,5 @@
 // to do:
 // add date and time
 // search based on date
+// fix copy and share of contact (.vcf file)
+// i think video player not added export chat

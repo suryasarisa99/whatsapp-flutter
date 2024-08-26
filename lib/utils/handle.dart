@@ -5,22 +5,21 @@ import 'package:collection/collection.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive_io.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:whatsapp_chat/models/Messages.dart';
 
 void handleData(String? chatsPath, String filePath, fileName,
     void Function(Messages messages) onDone) async {
-  final _chatsPath = chatsPath == null
-      ? p.join((await getExternalStorageDirectory())!.path, "chats")
-      : chatsPath;
+  chatsPath =
+      chatsPath ?? p.join((await getExternalStorageDirectory())!.path, "chats");
+
   if (filePath.endsWith(".zip")) {
     // get archive
     var bytes = File(filePath).readAsBytesSync();
     var archive = ZipDecoder().decodeBytes(bytes);
     // create output path
     var outputId = DateTime.now().millisecondsSinceEpoch.toString();
-    var outputPath = p.join(_chatsPath, outputId);
+    var outputPath = p.join(chatsPath, outputId);
     // extract archive to output path
     await extractArchiveToDisk(archive, outputPath);
     // get chat file
@@ -67,12 +66,12 @@ void handleData(String? chatsPath, String filePath, fileName,
     final chatId = DateTime.now().millisecondsSinceEpoch.toString();
     // final chatDir = Directory(chatsPath);
 
-    // // Check if the directory exists, if not, create it
+    // Check if the directory exists, if not, create it
     // if (!await chatDir.exists()) {
     //   await chatDir.create(recursive: true);
     // }
 
-    final chatFile = File(p.join(_chatsPath, "$chatId.json"));
+    final chatFile = File(p.join(chatsPath, "$chatId.json"));
     await chatFile
         .writeAsString(jsonEncode(messgs.map((msg) => msg.toJson()).toList()));
 

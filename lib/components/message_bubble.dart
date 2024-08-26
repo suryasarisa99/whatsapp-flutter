@@ -1,23 +1,62 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart';
 import 'package:open_file/open_file.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:whatsapp_chat/components/file_preview.dart';
-import 'package:whatsapp_chat/models/Database.dart';
+import 'package:whatsapp_chat/constants.dart';
 import 'package:whatsapp_chat/models/DbModels.dart';
-import 'package:path/path.dart' as p;
+import 'package:whatsapp_chat/models/Messages.dart';
+import 'package:whatsapp_chat/providers/saved_chats_provider.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
+import 'package:whatsapp_chat/utils/handle.dart';
+import 'package:path/path.dart' as p;
 
-class MssgBubble extends StatelessWidget {
-  final DbMssg mssg;
+class MessageBubble extends ConsumerWidget {
+  final Message? mssg;
+  final DbMssg? dbMssg;
+  final bool? isme;
+  final Directory? dir;
+  final bool inSelectionMode;
+  final bool info;
 
-  const MssgBubble(this.mssg, {super.key});
+  const MessageBubble({
+    required this.inSelectionMode,
+    super.key,
+    // Export Mssg
+    this.mssg,
+    this.isme,
+    this.dir,
+    // DbMssg
+    this.dbMssg,
+    this.info = false,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    final isMe = mssg.me == 1 ? true : false;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDb = dbMssg != null;
     final size = MediaQuery.of(context).size;
-    const whatsappPath =
-        "/storage/emulated/0/Android/media/com.whatsapp/WhatsApp";
+    final isMe = mssg != null
+        ? isme!
+        : dbMssg!.me == 1
+            ? true
+            : false;
+    final String? file = mssg?.file ?? dbMssg?.text;
+    String? ext = file != null ? p.extension(file) : null;
+    String? message = mssg?.mssg ?? dbMssg?.text;
+    String? filepath = file != null
+        ? p.join(
+            isDb
+                ? "/storage/emulated/0/Android/media/com.whatsapp/WhatsApp"
+                : dir!.path,
+            file)
+        : null;
+    print(" file: ${file}  ");
+
     return Container(
       padding: const EdgeInsets.all(5),
       margin: const EdgeInsets.symmetric(
@@ -25,12 +64,13 @@ class MssgBubble extends StatelessWidget {
         vertical: 6,
       ),
       constraints: BoxConstraints(
-        maxWidth: mssg.type == 1
-            ? size.width * 0.7
-            : mssg.type == 9
-                ? size.width * 0.68
-                : size.width * 0.8,
+        maxWidth: ext != null
+            ? ext == '.jpg' || ext == '.jpeg' || ext == '.png' || ext == '.webp'
+                ? size.width * 0.7
+                : size.width * 0.7
+            : size.width * 0.8,
         minWidth: 50,
+        minHeight: 20,
       ),
       decoration: BoxDecoration(
         // color: const Color.fromARGB(255, 50, 51, 87),
@@ -59,7 +99,8 @@ class MssgBubble extends StatelessWidget {
         ],
         // borderRadius: mssgBorderRadius[isMe ? 0 : 1][mssg.mssgGroupType],
       ),
-      child: mssg.type == 15
+      // deleted message
+      child: dbMssg?.type == 15
           ? Padding(
               padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 12),
               child: Row(
@@ -88,50 +129,72 @@ class MssgBubble extends StatelessWidget {
               ),
             )
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (mssg.file != null)
+                if (filepath != null)
                   InkWell(
                     borderRadius: BorderRadius.circular(16 - 8 - 2),
-                    onTap: () async {
-                      final result = await OpenFile.open(
-                        p.join(whatsappPath, mssg.file),
-                        // linuxDesktopName: "xdg-open",
-                        // linuxByProcess: true,
-                      );
-                      if (result.type != ResultType.done) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              duration: Duration(seconds: 3),
-                              content: Text(
-                                  'Could not open file: ${result.message}')),
-                        );
-                      }
-                    },
-                    child: FilePreviewNew(
+                    onTap: inSelectionMode
+                        ? null
+                        : () async {
+                            if (file!.contains("WhatsApp Chat")) {
+                              handleData(null, filepath!, file!,
+                                  (Messages messages) {
+                                final savedMssgItem =
+                                    messages.toSavedMessageItem();
+                                ref
+                                    .read(savedChatsProvider.notifier)
+                                    .addChat(savedMssgItem);
+                                GoRouter.of(context)
+                                    .push("/chat", extra: messages);
+                              });
+                              return;
+                            }
+                            final result = await OpenFile.open(filepath);
+                            if (result.type != ResultType.done) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Could not open file: ${result.message}')),
+                              );
+                            }
+                          },
+                    child: DbFilePreview(
+                      type: dbMssg?.type ?? -1,
                       isMe: isMe,
-                      type: mssg.type,
-                      filePath: p.join(whatsappPath, mssg.file!),
+                      filePath: filepath!,
                     ),
                   ),
-                // if (mssg.file != null) Text(p.join(whatsappPath, mssg.file!)),
-                if (mssg.file != null &&
-                    mssg.text != null &&
-                    mssg.text!.isNotEmpty)
+                if (file != null && message != null && message.isNotEmpty)
                   const SizedBox(height: 8),
-                // if (mssg.text != null && mssg.text!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(left: 8, right: 8),
-                  child: Text(
-                    // mssg.text ?? "" + "|| ${mssg.mid} || t:${mssg.type}",
-                    "${mssg.text} || ${mssg.mid} || t:${mssg.type}",
-                    // maxLines: 16,
-                    // overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 16,
+                if (message != null && message.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 8, right: 8),
+                    child: Linkify(
+                      onOpen: (link) async {
+                        final uri = Uri.parse(link.url);
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri,
+                              mode: LaunchMode.externalApplication);
+                        } else {
+                          throw 'Could not launch $link';
+                        }
+                      },
+                      // text: message + " type: ${dbMssg!.type}",
+                      text: message,
+                      maxLines: 16,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                      ),
+                      linkStyle: const TextStyle(
+                        color: Colors.blue,
+                        decoration: TextDecoration.none,
+                      ),
                     ),
                   ),
-                ),
+                if (info)
+                  Text(
+                      "mid: ${dbMssg!.mid} | t: ${DateTime.fromMillisecondsSinceEpoch(dbMssg!.timestamp).toString()} | me: ${isMe}")
               ],
             ),
     );

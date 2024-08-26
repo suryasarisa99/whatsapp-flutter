@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   archive: ^3.6.1
+  audioplayers: ^5.2.1
   chewie: ^1.8.3
   collection: ^1.18.0
   dynamic_color: ^1.7.0
@@ -31,7 +32,6 @@ dependencies:
   root_access: ^1.0.4
   screenshot: ^3.0.0
   scrollable_positioned_list: ^0.3.8
-  # share_plus: ^8.0.3
   share_plus: ^10.0.2
   shared_preferences: ^2.3.1
   sqflite: ^2.3.3+1
@@ -41,6 +41,7 @@ dependencies:
   widgets_to_image: ^1.0.0
 
 dev_dependencies:
+  flutter_launcher_icons: "^0.13.1"
   flutter_lints: ^3.0.0
   flutter_test:
     sdk: flutter
@@ -51,3 +52,26 @@ flutter:
     - assets/
     - assets/icons/
     - assets/patterns/
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/foreground-b.png"
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/foreground-a.png"
+  min_sdk_android: 21 # android min sdk min:16, default 21
+  web:
+    generate: true
+    image_path: "assets/foreground.png"
+    background_color: "#000000"
+    theme_color: "#hexcode"
+  windows:
+    generate: true
+    image_path: "assets/foreground.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  macos:
+    generate: true
+    image_path: "assets/foreground.png"
+  linux:
+    generate: true
+    image_path: "assets/foreground.png"

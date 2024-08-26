@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:whatsapp_chat/constants.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
 
 class ChatBackground extends StatelessWidget {
@@ -16,7 +17,7 @@ class ChatBackground extends StatelessWidget {
       "random-shapes.svg"
     ];
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final double patternOpacity = isDark ? 0.13 : 0.8;
+    final double patternOpacity = isDark ? 0.16 : 0.8;
     return Positioned(
       top: 0,
       bottom: 0,

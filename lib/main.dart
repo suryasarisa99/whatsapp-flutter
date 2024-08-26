@@ -6,24 +6,29 @@ import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:whatsapp_chat/components/db/chat_profile.dart';
 import 'package:whatsapp_chat/components/player_screen.dart';
-import 'package:whatsapp_chat/models/Database.dart';
 import 'package:whatsapp_chat/models/DbModels.dart';
 import 'package:whatsapp_chat/models/Messages.dart';
 import 'package:whatsapp_chat/providers/saved_chats_provider.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
 import 'package:whatsapp_chat/screens/db_chat_screen.dart';
+import 'package:whatsapp_chat/screens/hidden_screen.dart';
+import 'package:whatsapp_chat/screens/image_preview_screen.dart';
+import 'package:whatsapp_chat/screens/message_preview_screen.dart';
 import 'package:whatsapp_chat/screens/nav_screen.dart';
-import 'package:whatsapp_chat/screens/test_screen.dart';
+import 'package:whatsapp_chat/screens/search_screen.dart';
 import 'package:whatsapp_chat/utils/handle.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 SharedPreferences? prefs;
+late final String externalDir;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   prefs = await SharedPreferences.getInstance();
+  externalDir = (await getExternalStorageDirectory())!.path;
+  debugPrint("internalDir: $externalDir");
   // sqfliteFfiInit();
   // await DatabaseHelper.instance.database;
   runApp(ProviderScope(child: const MainApp()));
@@ -54,18 +59,14 @@ class _MainAppState extends ConsumerState<MainApp> {
   @override
   void initState() {
     super.initState();
-    mPrint("initState");
 
     // Listen to media sharing coming from outside the app while the app is in the memory.
     _intentSub = ReceiveSharingIntent.instance.getMediaStream().listen((value) {
-      mPrint("file share : Running App: outside if cond");
       print("data: $value");
       if (value.isNotEmpty) {
-        mPrint("file share : Running App: inside if cond");
         final filePath = value.first.path;
         final fileName = value.first.path.split("/").last;
         handleChat(filePath, fileName);
-        // routes.push("/test");
       } else {
         print("NO data: outside: ${value}");
       }
@@ -73,12 +74,7 @@ class _MainAppState extends ConsumerState<MainApp> {
 
     // Get the media sharing coming from outside the app while the app is closed.
     ReceiveSharingIntent.instance.getInitialMedia().then((value) {
-      mPrint("file share : Cosed App: outside if cond");
-      print("data: $value");
-
       if (value.isNotEmpty) {
-        // routes.go("/test");
-        mPrint("file share : Cosed App: inside if cond");
         final filePath = value.first.path;
         final fileName = value.first.path.split("/").last;
         handleChat(filePath, fileName);
@@ -89,19 +85,12 @@ class _MainAppState extends ConsumerState<MainApp> {
     });
   }
 
-  void mPrint(String mssg) {
-    debugPrint("<====================> $mssg <====================>");
-  }
-
   void handleChat(String filePath, String fileName) async {
     final d = await getExternalStorageDirectory();
-    // const d =
-    // "/storage/emulated/0/Android/data/com.example.whatsapp_chat/files/chats";
     final chatsPath = p.join(d!.path, "chats");
     handleData(chatsPath, filePath, fileName, (Messages messages) {
       final savedMssgItem = messages.toSavedMessageItem();
       ref.read(savedChatsProvider.notifier).addChat(savedMssgItem);
-      mPrint("handledChat Successfull");
       routes.push("/chat", extra: messages);
     });
   }
@@ -129,6 +118,7 @@ class _MainAppState extends ConsumerState<MainApp> {
     });
   }
 }
+
 // class MainApp extends StatelessWidget {
 //   const MainApp({super.key});
 
@@ -165,16 +155,58 @@ final routes = GoRouter(
               child: DbChatScreen(data: state.extra as DbMssgs));
         }),
     GoRoute(
+        path: "/dbchat-profile",
+        pageBuilder: (context, state) {
+          return MaterialPage(
+              child: DbChatProfileScreen(chat: state.extra as DbChat));
+        }),
+    GoRoute(
+        path: "/image-preview",
+        pageBuilder: (context, state) {
+          return MaterialPage(
+              child: ImagePreviewScreen(mssg: state.extra as DbMssgImageFile));
+        }),
+    GoRoute(
+        path: "/messages-preview",
+        pageBuilder: (context, state) {
+          return MaterialPage(
+              child: MessagPreviewScreen(mssgs: state.extra as List<DbMssg>));
+        }),
+    GoRoute(
         path: "/video",
         pageBuilder: (context, state) {
           return MaterialPage(
               child: PlayerScreen(filePath: state.extra as String));
         }),
     GoRoute(
-        path: "/test",
+        path: "/hidden",
         pageBuilder: (context, state) {
-          return MaterialPage(child: TestScreen());
+          return MaterialPage(child: HiddenScreen());
         }),
+
+    GoRoute(
+        path: "/search",
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            child: SearchScreen(data: state.extra as List<DbChat>),
+            transitionsBuilder:
+                (context, animation, secondaryAnimation, child) {
+              const begin = Offset(0.0, 0.05);
+              const end = Offset(0.0, 0.0);
+              const curve = Curves.ease;
+
+              var tween =
+                  Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+              var offsetAnimation = animation.drive(tween);
+
+              return SlideTransition(
+                position: offsetAnimation,
+                child: child,
+              );
+            },
+          );
+        }),
+
     // GoRoute(
     //     path: "/save",
     //     pageBuilder: (context, state) {

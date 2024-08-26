@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 class HomeAppbar extends StatelessWidget implements PreferredSizeWidget {
   const HomeAppbar({super.key});
@@ -11,13 +12,18 @@ class HomeAppbar extends StatelessWidget implements PreferredSizeWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return AppBar(
       forceMaterialTransparency: true,
-      title: Text('WhatsApp',
-          style: TextStyle(
-              fontWeight: FontWeight.w500,
-              color: isDark
-                  ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
-                  : Theme.of(context).colorScheme.primary,
-              fontSize: 26)),
+      title: InkWell(
+        onTap: () {
+          GoRouter.of(context).push("/hidden");
+        },
+        child: Text('WhatsApp',
+            style: TextStyle(
+                fontWeight: FontWeight.w500,
+                color: isDark
+                    ? Theme.of(context).colorScheme.onSurface.withOpacity(0.8)
+                    : Theme.of(context).colorScheme.primary,
+                fontSize: 26)),
+      ),
       actions: const [
         Icon(Icons.qr_code_scanner_outlined),
         SizedBox(width: 22),

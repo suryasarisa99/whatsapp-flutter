@@ -25,6 +25,12 @@ class DatabaseHelper {
       path,
     );
   }
+
+  Future<void> disonnect() async {
+    _database?.close();
+    _database = null;
+  }
+
   // Future<Database> _initDatabase() async {
   //   String path = join(await getDatabasesPath(), 'msgstore.db');
   //   Database db = await openDatabase(
@@ -62,6 +68,7 @@ class DatabaseHelper {
     const query = '''
   SELECT
       chat_view._id as cid,  
+      raw_string_jid as raw_jid,  
       jid.user as no,
       chat_view.subject as group_name,
       unseen_message_count as umc,
@@ -88,20 +95,111 @@ class DatabaseHelper {
     return result.map((e) => DbChat.fromMap(e)).toList();
   }
 
-  Future<List<DbMssg>> getChat(int id) async {
+  Future<List<DbMssg>> getMessages(int cid) async {
     final query = """SELECT 
-      message._id as mid, 
-      message.from_me as me, 
-      message.text_data as text, 
-      message.message_type as type, 
-      message_media.file_path as file,
-      message.timestamp as date
+    message._id as mid,
+    message.key_id as kid,
+    message.from_me as me, 
+    message.text_data as text, 
+    message.message_type as type,
+    message.timestamp as date,
+    message_media.file_path as file,
+    message_media.media_name as name,
+    message_media.file_size as size,
+    message_media.file_length as length,
+    message_media.width as width,
+    message_media.height as height,
+    message_media.media_duration as duration,
+    message_media.page_count as count,
+    message_quoted.key_id as quoted_kid,
+    GROUP_CONCAT(message_poll_option.option_name || '<<:>>' || message_poll_option.vote_total, '<<|>>') as options
     FROM message
     LEFT JOIN 
         message_media ON message._id = message_media.message_row_id
-    WHERE message.chat_row_id = $id And type != 7
+    LEFT JOIN
+        message_poll_option On message._id = message_poll_option.message_row_id
+    LEFT JOIN
+        message_quoted on message_quoted.message_row_id = message._id
+    WHERE message.chat_row_id = $cid And type != 7
     Group By message._id
-    Order By message.timestamp DESC
+    Order By message.timestamp DESC;
+    """;
+    final db = await database;
+    List<Map<String, dynamic>> result = await db.rawQuery(query, []);
+    // debugPrint(result.toString());
+    return result.map((e) => DbMssg.fromMap(e)).toList();
+  }
+  // Future<List<DbMssg>> getMessages(int cid) async {
+  //   final query = """SELECT
+  //     message._id as mid,
+  //     message.from_me as me,
+  //     message.text_data as text,
+  //     message.message_type as type,
+  //     message_media.file_path as file,
+  //     message.timestamp as date
+  //   FROM message
+  //   LEFT JOIN
+  //       message_media ON message._id = message_media.message_row_id
+  //   WHERE message.chat_row_id = $cid And type != 7
+  //   Group By message._id
+  //   Order By message.timestamp DESC;
+  //   """;
+  //   final db = await database;
+  //   List<Map<String, dynamic>> result = await db.rawQuery(query, []);
+  //   // debugPrint(result.toString());
+  //   return result.map((e) => DbMssg.fromMap(e)).toList();
+  // }
+
+  Future<List<Map<String, int>>> getMediaCount(int cid) async {
+    final query = """SELECT 
+      message.message_type as type, 
+      count(*) as count
+    FROM message
+    LEFT JOIN 
+        message_media ON message._id = message_media.message_row_id
+    WHERE message.chat_row_id = $cid And type != 7
+    Group By message.message_type
+    Order By count DESC;
+    """;
+    final db = await database;
+    List<Map<String, dynamic>> result = await db.rawQuery(query, []);
+    final List<Map<String, int>> intResult = result.map((e) {
+      return {
+        'type': e['type'] as int,
+        'count': e['count'] as int,
+      };
+    }).toList();
+    return intResult;
+  }
+
+  Future<List<DbMssg>> getMssgsOfType(int cid, int type) async {
+    final query = """SELECT 
+    message._id as mid,
+    message.key_id as kid,
+    message.from_me as me, 
+    message.text_data as text, 
+    message.message_type as type,
+    message.timestamp as date,
+    message_media.file_path as file,
+    message_media.media_name as name,
+    message_media.file_size as size,
+    message_media.file_length as length,
+    message_media.width as width,
+    message_media.height as height,
+    message_media.media_duration as duration,
+    message_media.page_count as count,
+    message_quoted.key_id as quoted_kid,
+    GROUP_CONCAT(message_poll_option.option_name || '<<:>>' || message_poll_option.vote_total, '<<|>>') as options
+    FROM message
+    LEFT JOIN 
+        message_media ON message._id = message_media.message_row_id
+    LEFT JOIN
+        message_poll_option On message._id = message_poll_option.message_row_id
+    LEFT JOIN
+        message_quoted on message_quoted.message_row_id = message._id
+    WHERE message.chat_row_id = $cid And type = $type
+    Group By message._id
+    Order By message.timestamp DESC;
     """;
     final db = await database;
     List<Map<String, dynamic>> result = await db.rawQuery(query, []);

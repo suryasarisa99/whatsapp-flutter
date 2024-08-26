@@ -11,6 +11,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:whatsapp_chat/components/home_appbar.dart';
 import 'package:whatsapp_chat/components/home_searchbar.dart';
+import 'package:whatsapp_chat/constants.dart';
 import 'package:whatsapp_chat/main.dart';
 import 'package:whatsapp_chat/models/Messages.dart';
 import 'package:whatsapp_chat/providers/saved_chats_provider.dart';
@@ -127,7 +128,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       backgroundColor: Theme.of(context)
                           .colorScheme
                           .primaryContainer
-                          .withOpacity(0.5),
+                          .withOpacity(0.3),
                       child: Icon(
                         Icons.person,
                         size: 25,
@@ -171,13 +172,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           duration: const Duration(seconds: 2)));
                     }
                     ref.read(savedChatsProvider.notifier).removeChat(index);
-                    // setState(() {
-                    //   savedMessages.removeAt(index);
-                    //   prefs!.setString(
-                    //       "chats",
-                    //       jsonEncode(
-                    //           savedMessages.map((e) => e.toJson()).toList()));
-                    // });
                   },
                   onTap: () async {
                     late final File chatFile;

@@ -7,10 +7,11 @@ import 'package:go_router/go_router.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:video_player/video_player.dart';
+import 'package:whatsapp_chat/constants.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
 
-class FilePreviewNew extends StatefulWidget {
-  const FilePreviewNew({
+class DbFilePreview extends StatefulWidget {
+  const DbFilePreview({
     super.key,
     required this.filePath,
     required this.isMe,
@@ -22,10 +23,10 @@ class FilePreviewNew extends StatefulWidget {
   final bool isMe;
 
   @override
-  State<FilePreviewNew> createState() => _FilePreviewNewState();
+  State<DbFilePreview> createState() => _DbFilePreviewState();
 }
 
-class _FilePreviewNewState extends State<FilePreviewNew> {
+class _DbFilePreviewState extends State<DbFilePreview> {
   late VideoPlayerController _controller;
   bool _isInitialized = false;
 
@@ -70,8 +71,11 @@ class _FilePreviewNewState extends State<FilePreviewNew> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     String ext = p.extension(widget.filePath);
-    debugPrint(ext);
-    if ((ext == ".jpg" || ext == ".jpeg" || ext == '.png' || ext == '.webp')) {
+    if ((ext == ".jpg" ||
+        ext == ".jpeg" ||
+        ext == '.png' ||
+        ext == '.webp' ||
+        ext == ".gif")) {
       return SizedBox(
         width: size.width * 0.7,
         height: size.width * 0.75,
@@ -79,6 +83,11 @@ class _FilePreviewNewState extends State<FilePreviewNew> {
             borderRadius: BorderRadius.circular(16 - 8),
             child: Image.file(
               File(widget.filePath),
+              errorBuilder: (context, error, stackTrace) {
+                return Center(
+                  child: Text("Error loading image"),
+                );
+              },
               fit: BoxFit.cover,
               alignment: Alignment(0, -0.5),
             )),
@@ -99,7 +108,7 @@ class _FilePreviewNewState extends State<FilePreviewNew> {
       );
     }
 
-    if (extensions.keys.contains(ext)) {
+    if (widget.type == 9 || extensions.keys.contains(ext)) {
       double rightMssgInnrDarkness =
           Theme.of(context).brightness == Brightness.dark ? 0.12 : 0.05;
       return Container(
@@ -125,7 +134,7 @@ class _FilePreviewNewState extends State<FilePreviewNew> {
         child: Row(
           children: [
             Image.asset(
-              'assets/icons/' + extensions[ext]!,
+              'assets/icons/' + (extensions[ext] ?? extensions["."]!),
               height: 70,
               width: 55,
             ),
@@ -164,30 +173,3 @@ class _FilePreviewNewState extends State<FilePreviewNew> {
     );
   }
 }
-
-const extensions = {
-  '.bin': 'binary.png',
-  '.binary': 'binary.png',
-  '.css': 'css.png',
-  '.doc': 'doc.png',
-  '.docx': 'doc.png',
-  '.document': 'doc.png',
-  '.html': 'html.png',
-  '.java': 'java.png',
-  '.js': 'js.png',
-  '.json': 'json.png',
-  // '.key': 'key.png',
-  // 'md.png': 'md.png',
-  '.pdf': 'pdf.png',
-  '.ppt': 'ppt.png',
-  '.pptx': 'ppt.png',
-  '.txt': 'txt-l1.png',
-  '.xls': 'xls.png',
-  '.xlsx': 'xls.png',
-  // '.xml': 'xml.png',
-  '.py': 'python.png',
-  '.rar': 'rar.png',
-  '.torrent': 'torrent.png',
-  'yaml': 'yaml.png',
-  '.zip': 'zip.png',
-};

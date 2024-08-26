@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:whatsapp_chat/screens/chat_screen.dart';
 import 'package:whatsapp_chat/screens/home_screen.dart';
-import 'package:whatsapp_chat/screens/root_screen.dart';
+import 'package:whatsapp_chat/screens/db_home_screen.dart';
 
 class NavScreen extends StatefulWidget {
   const NavScreen({super.key});

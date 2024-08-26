@@ -1,23 +1,15 @@
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:collection/collection.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:fuzzy/fuzzy.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:screenshot/screenshot.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:flutter/material.dart';
-import 'package:open_file/open_file.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:whatsapp_chat/components/chat_background.dart';
 import 'package:whatsapp_chat/components/chat_input.dart';
+import 'package:whatsapp_chat/components/chat_search_bar.dart';
+import 'package:whatsapp_chat/components/menu_item.dart';
+import 'package:whatsapp_chat/components/message_bubble.dart';
+import 'package:whatsapp_chat/constants.dart';
 import 'package:whatsapp_chat/models/Messages.dart';
-import 'package:path/path.dart' as p;
-import 'package:whatsapp_chat/screens/chat_screen/components.dart';
-import 'package:widgets_to_image/widgets_to_image.dart';
 
 class ChatScreen extends StatefulWidget {
   ChatScreen({super.key, required this.data});
@@ -28,19 +20,16 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-enum SearchType { Normal, Fuzzy, Date, Advanced }
-
 class _ChatScreenState extends State<ChatScreen> {
   late int direction = widget.data.direction;
 
   // final ScrollController _scrollController = ScrollController();
-  bool scrollDirection = true; // bottom by default
   bool isOnTop = false;
   final ItemScrollController _scrollController = ItemScrollController();
   final _scrollOffsetController = ScrollOffsetController();
   bool searchMode = false;
   FocusNode searchNode = FocusNode();
-  var _searchQueryController = TextEditingController();
+  final _searchQueryController = TextEditingController();
   SearchType searchType = SearchType.Date;
   bool selectionMode = false;
   List<Message> selectedMssgs = [];
@@ -77,6 +66,8 @@ class _ChatScreenState extends State<ChatScreen> {
         searchIndexes = _searchResults;
         currentSearchIndex = 0;
         scrollToIndex(searchIndexes[currentSearchIndex]);
+      } else {
+        currentSearchIndex = -1;
       }
     });
   }
@@ -86,8 +77,8 @@ class _ChatScreenState extends State<ChatScreen> {
       searchMode = false;
       currentSearchIndex = -1;
       searchIndexes = [];
+      _searchQueryController.clear();
     });
-    _searchQueryController.text = "";
   }
 
   void scrollToIndex(int index) {
@@ -128,7 +119,7 @@ class _ChatScreenState extends State<ChatScreen> {
           onTap: () {
             showMenu(
                 context: context,
-                position: const RelativeRect.fromLTRB(95, 50, 5, 100),
+                position: MenuPosition,
                 items: options["search"]!);
 
             // searchNode.requestFocus();
@@ -179,7 +170,6 @@ class _ChatScreenState extends State<ChatScreen> {
     return PopScope(
       canPop: !searchMode && !selectionMode,
       onPopInvoked: (x) {
-        print("popup Scope: ${x}");
         if (selectionMode) {
           setState(() {
             selectionMode = false;
@@ -191,62 +181,28 @@ class _ChatScreenState extends State<ChatScreen> {
       },
       child: Scaffold(
         appBar: searchMode
-            ? AppBar(
-                automaticallyImplyLeading: false,
-                title: CupertinoTextField(
-                  placeholder: "Search",
-                  padding: EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-                  focusNode: searchNode,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  controller: _searchQueryController,
-                  style:
-                      TextStyle(color: Theme.of(context).colorScheme.onSurface),
-                  prefix: Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: IconButton(
-                          onPressed: handleSearchCancel,
-                          icon: Icon(Icons.arrow_back))),
-                  onSubmitted: (_) {
-                    if (searchType == SearchType.Normal ||
-                        searchType == SearchType.Fuzzy) {
-                      handleSearch();
+            ? SearchAppBar(
+                searchNode: searchNode,
+                handleSearch: () {
+                  if (searchType == SearchType.Normal ||
+                      searchType == SearchType.Fuzzy) handleSearch();
+                },
+                handleSearchCancel: handleSearchCancel,
+                handleNext: () {
+                  setState(() {
+                    if (currentSearchIndex + 1 < searchIndexes.length) {
+                      scrollToIndex(searchIndexes[++currentSearchIndex]);
                     }
-                  },
-                  suffix: Padding(
-                    padding: EdgeInsets.only(right: 8),
-                    child: Row(
-                      children: [
-                        IconButton(
-                            onPressed: () {
-                              setState(() {
-                                if (currentSearchIndex + 1 <
-                                    searchIndexes.length) {
-                                  currentSearchIndex++;
-                                  scrollToIndex(
-                                      searchIndexes[currentSearchIndex]);
-                                }
-                              });
-                            },
-                            icon: FaIcon(FontAwesomeIcons.chevronUp, size: 17)),
-                        IconButton(
-                            onPressed: () {
-                              setState(() {
-                                if (currentSearchIndex - 1 >= 0) {
-                                  currentSearchIndex--;
-                                  scrollToIndex(
-                                      searchIndexes[currentSearchIndex]);
-                                }
-                              });
-                            },
-                            icon:
-                                FaIcon(FontAwesomeIcons.chevronDown, size: 17)),
-                      ],
-                    ),
-                  ),
-                ),
+                  });
+                },
+                handlePrevious: () {
+                  setState(() {
+                    if (currentSearchIndex - 1 >= 0) {
+                      scrollToIndex(searchIndexes[--currentSearchIndex]);
+                    }
+                  });
+                },
+                searchQueryController: _searchQueryController,
               )
             : selectionMode
                 ? AppBar(
@@ -270,37 +226,6 @@ class _ChatScreenState extends State<ChatScreen> {
                                     widget.data.chatDir!.path + "/" + e.file!))
                                 .toList();
                             Share.shareXFiles(xfiles);
-
-                            // final directory = await getTemporaryDirectory();
-                            // var xfiles = await selectedMssgs.map((e) async {
-                            //   if (e.file == null) {
-                            //     var captureController = ScreenshotController();
-                            //     var uint8list =
-                            //         await captureController.captureFromWidget(
-                            //       SizedBox(
-                            //         height: 50,
-                            //         child: ChatBubble(
-                            //           e,
-                            //           true,
-                            //           dir: widget.data.chatDir,
-                            //           dummy: true,
-                            //         ),
-                            //       ),
-                            //     );
-                            //     final imagePath =
-                            //         '${directory.path}/${DateTime.now().microsecondsSinceEpoch}-captured_image.png';
-                            //     final imageFile = File(imagePath);
-                            //     await imageFile.writeAsBytes(uint8list);
-                            //     return XFile(imagePath);
-                            //   } else {
-                            //     return XFile(
-                            //         widget.data.chatDir!.path + "/" + e.file!);
-                            //   }
-                            // }).toList();
-
-                            // Future.wait(xfiles).then((value) {
-                            //   Share.shareXFiles(value);
-                            // });
                           },
                           icon: Icon(Icons.share)),
                       IconButton(
@@ -353,12 +278,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         onPressed: () {
                           showMenu(
                               context: context,
-                              position: const RelativeRect.fromLTRB(
-                                95,
-                                50,
-                                5,
-                                100,
-                              ),
+                              position: MenuPosition,
                               items: options["default"]!);
                         },
                       ),
@@ -422,9 +342,9 @@ class _ChatScreenState extends State<ChatScreen> {
                                 ? MainAxisAlignment.end
                                 : MainAxisAlignment.start,
                             children: [
-                              ChatBubble(
-                                widget.data.messages[index],
-                                isMe,
+                              MessageBubble(
+                                mssg: widget.data.messages[index],
+                                isme: isMe,
                                 inSelectionMode: selectionMode,
                                 dir: widget.data.chatDir,
                               ),
@@ -444,70 +364,5 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
-  }
-}
-
-class CustomMenuItem extends PopupMenuItem {
-  CustomMenuItem({
-    super.key,
-    required this.onTap,
-    required this.icon,
-    required this.title,
-  }) : super(
-          child: Row(children: [
-            Icon(icon),
-            SizedBox(width: 16),
-            ConstrainedBox(
-                constraints: BoxConstraints(minWidth: 90), child: Text(title))
-          ]),
-          onTap: onTap,
-        );
-
-  final String title;
-  final IconData icon;
-  void Function() onTap;
-}
-
-extension ColorExtensions on Color {
-  Color inc(BuildContext context, [double amount = 0.1]) {
-    if (Theme.of(context).colorScheme.brightness == Brightness.dark) {
-      return lighten(amount);
-    }
-    return darken(amount);
-  }
-
-  Color revInc(BuildContext context, [double amount = 0.1]) {
-    if (Theme.of(context).colorScheme.brightness == Brightness.dark) {
-      return lighten(amount);
-    }
-    return lighten(amount);
-  }
-
-  Color dec(BuildContext context, [double amount = 0.1]) {
-    if (Theme.of(context).colorScheme.brightness == Brightness.dark) {
-      return darken(amount);
-    }
-    return lighten(amount);
-  }
-
-  Color revDec(BuildContext context, [double amount = 0.1]) {
-    if (Theme.of(context).colorScheme.brightness == Brightness.dark) {
-      return darken(amount);
-    }
-    return darken(amount);
-  }
-
-  Color darken([double amount = 0.1]) {
-    final hsl = HSLColor.fromColor(this);
-    final darkened =
-        hsl.withLightness((hsl.lightness - amount).clamp(0.0, 1.0));
-    return darkened.toColor();
-  }
-
-  Color lighten([double amount = 0.1]) {
-    final hsl = HSLColor.fromColor(this);
-    final lightened =
-        hsl.withLightness((hsl.lightness + amount).clamp(0.0, 1.0));
-    return lightened.toColor();
   }
 }

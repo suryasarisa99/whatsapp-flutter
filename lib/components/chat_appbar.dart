@@ -1,8 +1,22 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:whatsapp_chat/constants.dart';
+import 'package:whatsapp_chat/main.dart';
 
 class ChatAppbar extends StatelessWidget implements PreferredSizeWidget {
-  const ChatAppbar({super.key, required this.title});
+  const ChatAppbar({
+    super.key,
+    required this.title,
+    this.pic,
+    required this.options,
+    required this.goChatProfile,
+  });
+
   final String title;
+  final String? pic;
+  final Map<String, List<PopupMenuItem>> options;
+  final void Function() goChatProfile;
 
   @override
   Size get preferredSize => Size.fromHeight(kToolbarHeight + 5);
@@ -15,17 +29,43 @@ class ChatAppbar extends StatelessWidget implements PreferredSizeWidget {
       elevation: 3.0,
       title: Row(
         children: [
-          CircleAvatar(
-              radius: 23,
-              child: Icon(
-                Icons.person,
-                size: 30,
-              )),
+          if (pic != null)
+            Hero(
+              tag: "profile-pic-$pic",
+              child: CircleAvatar(
+                radius: 25,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(25),
+                  child: Image.file(
+                    File("$externalDir/Avatars/${pic}.j"),
+                    fit: BoxFit.cover,
+                    width: 50,
+                    height: 50,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.person,
+                        size: 25,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            )
+          else
+            CircleAvatar(
+                radius: 23,
+                child: Icon(
+                  Icons.person,
+                  size: 30,
+                )),
           SizedBox(width: 12),
           Expanded(
-            child: Text(title,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 19)),
+            child: InkWell(
+              onTap: goChatProfile,
+              child: Text(title,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 19)),
+            ),
           ),
         ],
       ),
@@ -36,36 +76,11 @@ class ChatAppbar extends StatelessWidget implements PreferredSizeWidget {
         IconButton(
           icon: const Icon(Icons.more_vert),
           onPressed: () {
-            //   showMenu(
-            //       context: context,
-            //       position: const RelativeRect.fromLTRB(
-            //         95,
-            //         50,
-            //         5,
-            //         100,
-            //       ),
-            //       items: [
-            //         PopupMenuItem(
-            //           child: const Row(
-            //             children: [
-            //               Icon(Icons.swap_horiz),
-            //               SizedBox(width: 16),
-            //               Text('Swap'),
-            //             ],
-            //           ),
-            //           onTap: () {},
-            //         ),
-            //         PopupMenuItem(
-            //           child: const Row(
-            //             children: [
-            //               Icon(Icons.arrow_downward),
-            //               SizedBox(width: 16),
-            //               Text('Go Bottom'),
-            //             ],
-            //           ),
-            //           onTap: () {},
-            //         ),
-            //       ]);
+            showMenu(
+              context: context,
+              position: MenuPosition,
+              items: options["default"]!,
+            );
           },
         ),
       ],
